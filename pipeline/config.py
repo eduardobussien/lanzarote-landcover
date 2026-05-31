@@ -8,7 +8,7 @@ Everything else is tuned for Lanzarote + dry-season Landsat compositing.
 from pathlib import Path
 
 # ── Google Earth Engine ────────────────────────────────────────────────────────
-GEE_PROJECT = "your-gee-project-id"   # <-- replace with your Cloud project ID
+GEE_PROJECT = "project-4cb2ec4e-f113-48f1-8b5"
 
 # ── Study Area ─────────────────────────────────────────────────────────────────
 # Lanzarote + La Graciosa bounding box (WGS-84 / EPSG:4326)
