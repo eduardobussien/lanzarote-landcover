@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = [
+    # Stub modules pre-declare imports needed for future phase implementations.
+    # Re-enable F401 once phases 2–4 are complete.
+    "F401",
+    # Docstrings are intentionally detailed; long lines are acceptable.
+    "E501",
+]
