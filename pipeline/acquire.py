@@ -32,7 +32,6 @@ from pipeline.config import (
     SR_SCALE,
 )
 
-
 # ── Initialisation ─────────────────────────────────────────────────────────────
 
 def initialize_gee(project: str = GEE_PROJECT) -> None:
@@ -76,9 +75,6 @@ def _rename_and_scale(image: ee.Image, band_map: dict[str, str]) -> ee.Image:
     ('blue', 'green', 'red', 'nir', 'swir1', 'swir2')
     and apply the Landsat Collection 2 surface reflectance scale factors.
     """
-    original_names   = list(band_map.values())
-    standardised_names = list(band_map.keys())
-
     # Keep only the bands we need (drops thermal, QA, etc.)
     spectral_bands = [v for k, v in band_map.items() if k != "qa"]
     std_names      = [k for k in band_map if k != "qa"]

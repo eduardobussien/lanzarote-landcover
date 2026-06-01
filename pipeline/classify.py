@@ -27,9 +27,9 @@ Notes
 
 # TODO (Phase 2): Implement classifier training and prediction
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, cohen_kappa_score
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, cohen_kappa_score, confusion_matrix
 
 from pipeline.config import CLASS_NAMES, N_CLASSES
 
@@ -57,7 +57,7 @@ def train_classifier(X_train: np.ndarray, y_train: np.ndarray) -> RandomForestCl
     """
     Train a Random Forest with settings tuned for spectral classification.
     """
-    clf = RandomForestClassifier(
+    _clf = RandomForestClassifier(
         n_estimators=200,
         max_depth=20,
         min_samples_split=10,

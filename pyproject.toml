@@ -11,3 +11,8 @@ ignore = [
     # Docstrings are intentionally detailed; long lines are acceptable.
     "E501",
 ]
+
+[tool.ruff.lint.isort]
+# Tell ruff that `pipeline` is a first-party (local) module so it
+# correctly separates it from third-party imports like ee/sklearn/numpy.
+known-first-party = ["pipeline"]

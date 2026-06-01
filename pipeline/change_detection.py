@@ -19,6 +19,7 @@ Key events to validate against (Canary Islands ground truth):
 # TODO (Phase 3): Implement change detection
 
 import numpy as np
+
 from pipeline.config import CLASS_NAMES, N_CLASSES, PIXEL_AREA_M2
 
 
