@@ -162,7 +162,7 @@ def get_annual_composite(
     """
     Create an annual dry-season composite for a given year.
 
-    Per-pixel median compositing is used by default — robust against
+    Per-pixel median compositing is used by default - robust against
     remaining cloud/shadow artefacts, and represents typical conditions
     rather than single-scene outliers.
 

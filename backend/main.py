@@ -8,7 +8,7 @@ API docs available at:
     http://localhost:8000/docs   (Swagger UI)
     http://localhost:8000/redoc  (ReDoc)
 
-Status: Phase 4 — not yet implemented.
+Status: Phase 4 - not yet implemented.
 """
 
 from fastapi import FastAPI

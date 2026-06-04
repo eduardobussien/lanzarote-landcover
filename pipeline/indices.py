@@ -46,7 +46,7 @@ def ndbi(swir1: np.ndarray, nir: np.ndarray) -> np.ndarray:
     Highlights impervious/built-up surfaces. Positive values = urban.
 
     Note for Lanzarote: dark basalt (Barren/Volcanic) can also have
-    positive NDBI — combine with NDVI and elevation to disambiguate.
+    positive NDBI - combine with NDVI and elevation to disambiguate.
     """
     return (swir1 - nir) / (swir1 + nir + _EPS)
 
@@ -54,7 +54,7 @@ def ndbi(swir1: np.ndarray, nir: np.ndarray) -> np.ndarray:
 def savi(nir: np.ndarray, red: np.ndarray, L: float = 0.5) -> np.ndarray:
     """
     Soil-Adjusted Vegetation Index (Huete 1988).
-    Better than NDVI in areas with sparse vegetation and exposed soil —
+    Better than NDVI in areas with sparse vegetation and exposed soil -
     critical for Lanzarote and Fuerteventura where soil background is dominant.
 
     L = 0.5  is the standard soil brightness correction factor.

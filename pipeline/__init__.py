@@ -1,5 +1,5 @@
 """
-Lanzarote Land Cover — Processing Pipeline
+Lanzarote Land Cover - Processing Pipeline
 ==========================================
 
 Modules

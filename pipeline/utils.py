@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """Return a pre-configured logger."""
     logging.basicConfig(
-        format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
+        format="%(asctime)s  %(levelname)-8s  %(name)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     log = logging.getLogger(name)
@@ -56,7 +56,7 @@ def stack_bands(bands: dict[str, np.ndarray]) -> np.ndarray:
 
 
 def unstack_bands(array: np.ndarray, names: list[str]) -> dict[str, np.ndarray]:
-    """Inverse of stack_bands — split a (bands, H, W) array into a named dict."""
+    """Inverse of stack_bands - split a (bands, H, W) array into a named dict."""
     assert array.shape[0] == len(names), "Band count must match names list length"
     return {name: array[i] for i, name in enumerate(names)}
 

@@ -29,7 +29,7 @@ PIXEL_AREA_M2 = PIXEL_SIZE_M ** 2      # 900 m²
 YEAR_START = 1985
 YEAR_END   = 2024
 
-# Dry-season months (May–September) — consistent seasonality, no wet-season bias
+# Dry-season months (May–September) - consistent seasonality, no wet-season bias
 SEASON_START_MONTH = 5   # May
 SEASON_END_MONTH   = 9   # September
 
@@ -59,21 +59,23 @@ N_CLASSES       = len(CLASS_NAMES)
 # ── CORINE → simplified class mapping ──────────────────────────────────────────
 # Keys are CORINE Level-3 integer codes; values are our class indices above.
 CORINE_REMAP: dict[int, int] = {
-    # 0 — Urban/Built-up  (CORINE artificial surfaces 111–142)
+    # 0 - Urban/Built-up  (CORINE artificial surfaces 111–142)
     **{code: 0 for code in range(111, 143)},
-    # 1 — Forest/Woodland  (311 broadleaved, 312 coniferous, 313 mixed)
+    # 1 - Forest/Woodland  (311 broadleaved, 312 coniferous, 313 mixed)
     **{code: 1 for code in [311, 312, 313]},
-    # 2 — Water/Wetland  (inland wetlands 411-423, water bodies 511-523)
-    **{code: 2 for code in [411, 412, 421, 422, 423, 511, 512, 521, 522, 523]},
-    # 3 — Agriculture  (arable land 211-213, permanent crops 221-244)
+    # 2 - Water/Wetland  (inland wetlands 411-423, coastal lagoons 521-522)
+    # 523 (Sea and ocean) intentionally excluded - avoids sampling open ocean pixels
+    # when the AOI bounding box extends beyond the island coastline.
+    **{code: 2 for code in [411, 412, 421, 422, 423, 511, 512, 521, 522]},
+    # 3 - Agriculture  (arable land 211-213, permanent crops 221-244)
     **{code: 3 for code in range(211, 245)},
-    # 4 — Barren/Volcanic  (bare rock 332, sand 331, burnt 334, glaciers 335)
+    # 4 - Barren/Volcanic  (bare rock 332, sand 331, burnt 334, glaciers 335)
     **{code: 4 for code in [331, 332, 333, 334, 335]},
-    # 5 — Shrubland/Matorral  (natural grassland 321, moors 322, sclerophyllous 323, transitional 324)
+    # 5 - Shrubland/Matorral  (natural grassland 321, moors 322, sclerophyllous 323, transitional 324)
     **{code: 5 for code in [321, 322, 323, 324]},
 }
 
-# ── Landsat Collection 2 Level-2 — band names by sensor ───────────────────────
+# ── Landsat Collection 2 Level-2 - band names by sensor ───────────────────────
 # All sensors map to the same standardised keys used throughout the pipeline.
 LANDSAT_COLLECTIONS = {
     "LANDSAT/LT05/C02/T1_L2": {   # Landsat 5 TM (1984–2013)

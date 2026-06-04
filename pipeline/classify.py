@@ -21,7 +21,7 @@ Notes
 - CORINE resolution is 100m; Landsat is 30m. When sampling training pixels,
   only use pixels well inside CORINE class polygons (buffer inward ~50m)
   to avoid mixed-class boundary effects.
-- Use spatial block cross-validation, NOT random pixel splits —
+- Use spatial block cross-validation, NOT random pixel splits -
   random splits inflate accuracy due to spatial autocorrelation.
 """
 
@@ -38,7 +38,7 @@ def build_feature_stack(bands: dict, indices: dict,
                         elevation: np.ndarray | None = None) -> np.ndarray:
     """
     Flatten spatial arrays into a (n_pixels, n_features) matrix.
-    Feature order matches the trained model — do not reorder.
+    Feature order matches the trained model - do not reorder.
     """
     raise NotImplementedError("Phase 2")
 
@@ -66,7 +66,7 @@ def train_classifier(X_train: np.ndarray, y_train: np.ndarray) -> RandomForestCl
         n_jobs=-1,
         random_state=42,
     )
-    raise NotImplementedError("Phase 2 — fit clf and return it")
+    raise NotImplementedError("Phase 2 - fit clf and return it")
 
 
 def evaluate_classifier(clf, X_val: np.ndarray, y_val: np.ndarray) -> dict:

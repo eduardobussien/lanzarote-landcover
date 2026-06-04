@@ -8,7 +8,7 @@ ipykernel>=6.0              # Jupyter kernel
 
 # ── Phase 2: Local processing & classification ────────────────────────────────
 rasterio>=1.3               # Read/write GeoTIFF rasters
-GDAL>=3.6                   # Geospatial transforms (installed separately — see README)
+GDAL>=3.6                   # Geospatial transforms (installed separately - see README)
 scipy>=1.10                 # Spatial statistics, signal processing
 shapely>=2.0                # Geometric operations (AOI clipping)
 geopandas>=0.14             # Vector data (shapefiles, GeoJSON)
@@ -19,7 +19,7 @@ joblib>=1.3                 # Model serialization
 Pillow>=10.0                # Image utilities
 
 # ── Phase 3: Change analysis ──────────────────────────────────────────────────
-# (no additional deps — uses numpy, geopandas from above)
+# (no additional deps - uses numpy, geopandas from above)
 
 # ── Phase 4: Backend API ──────────────────────────────────────────────────────
 fastapi>=0.100              # REST API framework
