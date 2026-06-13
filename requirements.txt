@@ -18,8 +18,9 @@ xgboost>=2.0                # Gradient boosting (alternative classifier)
 joblib>=1.3                 # Model serialization
 Pillow>=10.0                # Image utilities
 
-# ── Phase 3: Change analysis ──────────────────────────────────────────────────
-# (no additional deps - uses numpy, geopandas from above)
+# ── Phase 3: Change analysis & visualisation ──────────────────────────────────
+pandas>=2.0                 # DataFrames for area time series and transition matrices
+plotly>=5.18                # Interactive Sankey diagrams and charts
 
 # ── Phase 4: Backend API ──────────────────────────────────────────────────────
 fastapi>=0.100              # REST API framework

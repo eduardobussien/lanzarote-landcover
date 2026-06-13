@@ -73,13 +73,16 @@ ACTIVE_CLASSES = [0, 2, 3, 4]
 ACTIVE_NAMES   = [CLASS_NAMES[i] for i in ACTIVE_CLASSES]
 ACTIVE_COLORS  = [CLASS_COLORS[n] for n in ACTIVE_NAMES]
 
-# 8 target years - one per ~5 years spanning the full Landsat archive
-TARGET_YEARS  = [1990, 1995, 2000, 2005, 2010, 2015, 2020, 2023]
+# 8 target years spanning the full Landsat archive.
+# 2002 used instead of 2005 - Landsat 7's Scan Line Corrector failed May 2003,
+# causing striped data gaps in all L7 imagery from 2003 onward. 2002 is the last
+# clean pre-SLC-off L7 year before the gap.
+TARGET_YEARS  = [1990, 1995, 2000, 2002, 2010, 2015, 2020, 2023]
 SENSOR_LABELS = {
     1990: 'Landsat 5',
     1995: 'Landsat 5',
     2000: 'Landsat 7',
-    2005: 'Landsat 7',
+    2002: 'Landsat 7 (last pre-SLC-off)',
     2010: 'Landsat 7',
     2015: 'Landsat 8',
     2020: 'Landsat 8',
@@ -418,6 +421,20 @@ lg += '</div>'
 m.get_root().html.add_child(folium.Element(lg))
 
 display(m)\
+"""))
+
+# ── Save outputs ──────────────────────────────────────────────────────────────
+cells.append(code("""\
+import pathlib
+processed = pathlib.Path('../data/processed')
+processed.mkdir(parents=True, exist_ok=True)
+
+area_df.to_csv(processed / 'area_time_series.csv', index=False)
+trans_df.to_csv(processed / 'transition_matrix_1990_2023.csv')
+
+print('Saved:')
+print(f'  {processed}/area_time_series.csv')
+print(f'  {processed}/transition_matrix_1990_2023.csv')\
 """))
 
 # ── Next steps ────────────────────────────────────────────────────────────────
