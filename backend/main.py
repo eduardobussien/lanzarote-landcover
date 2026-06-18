@@ -14,6 +14,8 @@ Status: Phase 4 - not yet implemented.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.routers.analysis import router as analysis_router
+
 app = FastAPI(
     title="Lanzarote Land Cover API",
     description="Historical land cover change analysis for the Canary Islands.",
@@ -34,9 +36,4 @@ async def health_check():
     return {"status": "ok", "version": "0.1.0"}
 
 
-# TODO (Phase 4): Import and include routers
-# from backend.routers import analyses, regions, tiles, export
-# app.include_router(analyses.router, prefix="/api/v1")
-# app.include_router(regions.router,  prefix="/api/v1")
-# app.include_router(tiles.router,    prefix="/api/v1")
-# app.include_router(export.router,   prefix="/api/v1")
+app.include_router(analysis_router)
