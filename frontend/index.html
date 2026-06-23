@@ -547,16 +547,12 @@
         <span class="stat-value">1990 - 2023 (33 years)</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Total mapped area</span>
+        <span class="stat-label" id="stat-area-label">Classified area</span>
         <span class="stat-value" id="stat-total-area">-</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Land cover changed</span>
-        <span class="stat-value" id="stat-changed">-</span>
-      </div>
-      <div class="stat-row">
         <span class="stat-label">Classifier accuracy</span>
-        <span class="stat-value">66.7% overall (Kappa 0.52)</span>
+        <span class="stat-value">66.7% OA / Kappa 0.52 (2023)</span>
       </div>
       <div class="stat-row">
         <span class="stat-label">Imagery source</span>
@@ -566,7 +562,12 @@
         <span class="stat-label">Training labels</span>
         <span class="stat-value">CORINE Land Cover 2018</span>
       </div>
+      <div class="stat-row">
+        <span class="stat-label">Sensor</span>
+        <span class="stat-value" id="stat-sensor">Landsat 9 OLI-2</span>
+      </div>
     </div>
+    <p id="sensor-note" style="display:none; font-size:0.72rem; color:var(--muted); line-height:1.5; margin-bottom:20px; padding:10px 12px; border:1px solid var(--border); border-radius:6px;"></p>
 
     <p class="chart-label">Area trend 1990-2023</p>
     <svg id="area-chart" viewBox="0 0 380 110" preserveAspectRatio="none"></svg>
@@ -593,7 +594,7 @@
     </div>
     <div class="about-block">
       <h3>What the data shows</h3>
-      <p>Select a year above to see the classified Landsat composite for that period. The classifier was trained on CORINE 2018 land cover labels and applied to imagery spanning 1990 to 2023. Each pixel represents a 30 x 30 m Landsat cell. Use the panels below to read what each class means and how the island's area breakdown has changed over 33 years.</p>
+      <p>The classifier was trained on Landsat 9 imagery and CORINE 2018 labels, so the <strong style="color:var(--text)">2015-2023 maps are the most reliable</strong>. Earlier years (1990-2010) use older Landsat sensors with slightly different spectral responses, which increases classification uncertainty - particularly between Agriculture and Urban pixels. Treat historical maps as indicative of broad patterns rather than precise measurements.</p>
     </div>
   </div>
 </div>
@@ -733,12 +734,26 @@ async function fetchTimeSeries() {
   }
 }
 
+const SENSOR_INFO = {
+  1990: { name: 'Landsat 5 TM',    reliable: false },
+  1995: { name: 'Landsat 5 TM',    reliable: false },
+  2000: { name: 'Landsat 7 ETM+',  reliable: false },
+  2002: { name: 'Landsat 7 ETM+',  reliable: false },
+  2010: { name: 'Landsat 7 ETM+',  reliable: false },
+  2015: { name: 'Landsat 8 OLI',   reliable: true  },
+  2020: { name: 'Landsat 8 OLI',   reliable: true  },
+  2023: { name: 'Landsat 9 OLI-2', reliable: true  },
+};
+
 function updateAreaLabels(year) {
   if (!tsData) return;
   const pts = tsData.data.filter(d => d.year === year);
+
   document.querySelectorAll('.area-year-label').forEach(el => {
     el.textContent = `km² in ${year}`;
   });
+
+  let totalArea = 0;
   for (const p of pts) {
     const meta = CLASS_META[p.class_name];
     if (!meta) continue;
@@ -746,22 +761,34 @@ function updateAreaLabels(year) {
     if (el) {
       el.innerHTML = `<strong>${p.area_km2.toFixed(1)}</strong> <span class="area-year-label">km² in ${year}</span>`;
     }
+    totalArea += p.area_km2;
+  }
+
+  // Update total area from this year's classifications (not from the transition matrix)
+  if (totalArea > 0) {
+    document.getElementById('stat-total-area').textContent = `${totalArea.toFixed(0)} km²`;
+    document.getElementById('stat-area-label').textContent = `Classified area (${year})`;
+  }
+
+  // Update sensor row and show/hide the accuracy note
+  const sensor = SENSOR_INFO[year];
+  if (sensor) {
+    document.getElementById('stat-sensor').textContent = sensor.name;
+    const note = document.getElementById('sensor-note');
+    if (!sensor.reliable) {
+      note.style.display = 'block';
+      note.textContent = `Note: ${year} uses ${sensor.name} imagery. The classifier was trained on Landsat 9 (2023) spectral signatures, so classifications for earlier sensor generations carry higher uncertainty - treat them as indicative rather than precise.`;
+    } else {
+      note.style.display = 'none';
+    }
   }
 }
 
-// ── Transitions / stats ────────────────────────────────────────────────────────
+// ── Transitions (fetched for future use but not displayed directly) ────────────
 async function fetchTransitions() {
-  try {
-    const res = await fetch(`${API_BASE}/api/v1/transitions`);
-    if (!res.ok) return;
-    const d = await res.json();
-    const total = (d.stable_km2 + d.changed_km2).toFixed(0);
-    document.getElementById('stat-total-area').textContent = `${total} km²`;
-    document.getElementById('stat-changed').textContent =
-      `${d.changed_km2.toFixed(0)} km² (${d.changed_pct.toFixed(1)}%)`;
-  } catch (e) {
-    console.warn('Transitions unavailable:', e.message);
-  }
+  // Transition data is available at /api/v1/transitions but not shown in the UI
+  // because the 1990 classification has cross-sensor uncertainty that makes the
+  // 58.8% change figure unreliable. Reserved for the notebooks / Sankey diagram.
 }
 
 // ── Area trend chart (SVG) ─────────────────────────────────────────────────────
