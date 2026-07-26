@@ -100,6 +100,75 @@
       cursor: not-allowed;
     }
 
+    /* ── Compare toggle + bar ────────────────────────────────────────── */
+    .compare-toggle {
+      margin-left: 10px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .compare-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+    .compare-toggle.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .compare-bar {
+      display: none;              /* shown only in compare mode */
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      padding: 12px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .compare-bar.visible { display: flex; }
+
+    .compare-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .compare-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .compare-select {
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .compare-arrow { color: var(--muted); font-size: 0.9rem; }
+
+    .compare-stat {
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+
     /* ── Map ─────────────────────────────────────────────────────────── */
     .map-wrapper {
       position: relative;
@@ -443,15 +512,26 @@
 <header>
   <div class="header-brand">
     <h1>Lanzarote Land Cover</h1>
-    <p>Land cover change 1990-2023 &nbsp;·&nbsp; by <span style="color:var(--text);font-weight:500">Eduardo Bussien</span></p>
+    <p>Land cover change 2014-2023 &nbsp;·&nbsp; by <span style="color:var(--text);font-weight:500">Eduardo Bussien</span></p>
   </div>
   <div class="year-selector" id="yearSelector">
-    <button class="year-btn" data-year="1990">1990</button>
-    <button class="year-btn" data-year="2002">2002</button>
-    <button class="year-btn" data-year="2010">2010</button>
+    <button class="year-btn" data-year="2014">2014</button>
+    <button class="year-btn" data-year="2017">2017</button>
+    <button class="year-btn" data-year="2020">2020</button>
     <button class="year-btn active" data-year="2023">2023</button>
+    <button class="compare-toggle" id="compareToggle" title="Compare two years">⇄ Compare</button>
   </div>
 </header>
+
+<div class="compare-bar" id="compareBar">
+  <div class="compare-controls">
+    <span class="compare-label">Compare</span>
+    <select id="compareFrom" class="compare-select"></select>
+    <span class="compare-arrow">→</span>
+    <select id="compareTo" class="compare-select"></select>
+  </div>
+  <span class="compare-stat" id="compareStat">Coloured pixels changed class; dark = unchanged.</span>
+</div>
 
 <div class="map-wrapper">
   <div id="map"></div>
@@ -544,7 +624,7 @@
     <div class="stats-table">
       <div class="stat-row">
         <span class="stat-label">Study period</span>
-        <span class="stat-value">1990 - 2023 (33 years)</span>
+        <span class="stat-value">2014 - 2023 (9 years)</span>
       </div>
       <div class="stat-row">
         <span class="stat-label" id="stat-area-label">Classified area</span>
@@ -569,7 +649,7 @@
     </div>
     <p id="sensor-note" style="display:none; font-size:0.72rem; color:var(--muted); line-height:1.5; margin-bottom:20px; padding:10px 12px; border:1px solid var(--border); border-radius:6px;"></p>
 
-    <p class="chart-label">Area trend 1990-2023</p>
+    <p class="chart-label">Area trend 2014-2023</p>
     <svg id="area-chart" viewBox="0 0 380 110" preserveAspectRatio="none"></svg>
     <div class="chart-legend" id="chartLegend"></div>
   </div>
@@ -594,7 +674,7 @@
     </div>
     <div class="about-block">
       <h3>What the data shows</h3>
-      <p>The classifier was trained on Landsat 9 imagery and CORINE 2018 labels, so the <strong style="color:var(--text)">2015-2023 maps are the most reliable</strong>. Earlier years (1990-2010) use older Landsat sensors with slightly different spectral responses, which increases classification uncertainty - particularly between Agriculture and Urban pixels. Treat historical maps as indicative of broad patterns rather than precise measurements.</p>
+      <p>Every year from 2014 to 2023 is imaged by the same satellite (Landsat 8) and labelled by the same classifier, trained on CORINE 2018 reference data. Holding the method constant means the differences you see between years reflect <strong style="color:var(--text)">real land cover change</strong>, not an artefact of switching sensors or models. Overall classifier accuracy is 66.7%, with the main uncertainty between Agriculture and Barren pixels on this volcanic terrain - so read the numbers as close estimates rather than exact figures.</p>
     </div>
   </div>
 </div>
@@ -618,7 +698,7 @@
 <script>
 // ── Config ─────────────────────────────────────────────────────────────────────
 const API_BASE = '';   // same origin when served by FastAPI; set to 'http://localhost:8000' if opening as a file
-const DISPLAY_YEARS = [1990, 2002, 2010, 2023];
+const DISPLAY_YEARS = [2014, 2017, 2020, 2023];
 
 const CLASS_META = {
   'Urban/Built-up':  { color: '#E8443A', areaId: 'area-urban' },
@@ -630,7 +710,8 @@ const CLASS_META = {
 // ── State ──────────────────────────────────────────────────────────────────────
 let activeYear = 2023;
 let geeLayer = null;
-let tsData = null;
+// year -> { class_name: area_km2 }, filled live from the same classifier as the map
+const areasByYear = {};
 
 // ── Map init ───────────────────────────────────────────────────────────────────
 const map = L.map('map', {
@@ -673,6 +754,8 @@ yearSelector.addEventListener('click', e => {
   const btn = e.target.closest('.year-btn');
   if (!btn || btn.disabled) return;
   const year = parseInt(btn.dataset.year);
+
+  if (compareMode) exitCompareMode();   // clicking a single year leaves compare mode
   if (year === activeYear) return;
 
   yearSelector.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
@@ -680,11 +763,84 @@ yearSelector.addEventListener('click', e => {
   activeYear = year;
 
   loadGeeLayer(year);
-  updateAreaLabels(year);
+  updateAreaLabels(year);           // show cached values (or "..." placeholders)
+  fetchAreas(year).then(() => {     // then fill in once live areas arrive
+    if (year === activeYear) updateAreaLabels(year);
+    drawAreaChart();
+  });
 });
 
 function setYearButtonsEnabled(enabled) {
   yearSelector.querySelectorAll('.year-btn').forEach(b => { b.disabled = !enabled; });
+}
+
+// ── Compare mode ────────────────────────────────────────────────────────────────
+let compareMode = false;
+const compareToggle = document.getElementById('compareToggle');
+const compareBar    = document.getElementById('compareBar');
+const compareFromSel = document.getElementById('compareFrom');
+const compareToSel   = document.getElementById('compareTo');
+const compareStat    = document.getElementById('compareStat');
+
+for (const y of DISPLAY_YEARS) {
+  compareFromSel.add(new Option(y, y));
+  compareToSel.add(new Option(y, y));
+}
+compareFromSel.value = String(DISPLAY_YEARS[0]);                        // 2014
+compareToSel.value   = String(DISPLAY_YEARS[DISPLAY_YEARS.length - 1]); // 2023
+
+compareToggle.addEventListener('click', () => {
+  compareMode ? exitCompareMode() : enterCompareMode();
+});
+compareFromSel.addEventListener('change', loadChangeMap);
+compareToSel.addEventListener('change', loadChangeMap);
+
+function enterCompareMode() {
+  compareMode = true;
+  compareToggle.classList.add('active');
+  compareBar.classList.add('visible');
+  loadChangeMap();
+}
+
+function exitCompareMode() {
+  compareMode = false;
+  compareToggle.classList.remove('active');
+  compareBar.classList.remove('visible');
+  loadGeeLayer(activeYear);   // restore the single-year map
+}
+
+async function loadChangeMap() {
+  const a = parseInt(compareFromSel.value);
+  const b = parseInt(compareToSel.value);
+  if (a === b) {
+    compareStat.textContent = 'Pick two different years.';
+    return;
+  }
+  setYearButtonsEnabled(false);
+  showLoading(`Comparing ${a} and ${b}...`);
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/change/${a}/${b}`);
+    if (!res.ok) {
+      if (geeLayer) { map.removeLayer(geeLayer); geeLayer = null; }
+      showGeeError();
+      setYearButtonsEnabled(true);
+      return;
+    }
+    const { tile_url, changed_km2, changed_pct } = await res.json();
+    if (geeLayer) { map.removeLayer(geeLayer); geeLayer = null; }
+    geeLayer = L.tileLayer(tile_url, { opacity: 0.9, maxZoom: 14 });
+    geeLayer.addTo(map);
+    let hidden = false;
+    const done = () => { if (!hidden) { hidden = true; hideLoading(); setYearButtonsEnabled(true); } };
+    geeLayer.once('load', done);
+    setTimeout(done, 12000);
+    compareStat.textContent =
+      `${changed_km2} km² changed class (${changed_pct}% of the island), shown as what it became.`;
+  } catch (err) {
+    console.warn('Change map fetch failed:', err.message);
+    showGeeError();
+    setYearButtonsEnabled(true);
+  }
 }
 
 // ── GEE tile layer ─────────────────────────────────────────────────────────────
@@ -696,6 +852,9 @@ async function loadGeeLayer(year) {
     const res = await fetch(`${API_BASE}/api/v1/tiles/${year}`);
     if (!res.ok) {
       console.warn('Tile endpoint returned', res.status);
+      // Clear the stale layer so a failed year does not silently show the
+      // previously loaded map (which looked like "every year is the same").
+      if (geeLayer) { map.removeLayer(geeLayer); geeLayer = null; }
       showGeeError();
       setYearButtonsEnabled(true);
       return;
@@ -721,99 +880,119 @@ async function loadGeeLayer(year) {
   }
 }
 
-// ── Time series ────────────────────────────────────────────────────────────────
-async function fetchTimeSeries() {
-  try {
-    const res = await fetch(`${API_BASE}/api/v1/time-series`);
-    if (!res.ok) return;
-    tsData = await res.json();
-    updateAreaLabels(activeYear);
-    drawAreaChart(tsData);
-  } catch (e) {
-    console.warn('Time series unavailable:', e.message);
+// ── Live class areas ───────────────────────────────────────────────────────────
+// Every display year is imaged by Landsat 8 and classified by the SAME model,
+// so differences between years reflect real change, not a change of method.
+const SENSOR_INFO = {
+  2014: { name: 'Landsat 8 OLI', classifier: 'L8' },
+  2017: { name: 'Landsat 8 OLI', classifier: 'L8' },
+  2020: { name: 'Landsat 8 OLI', classifier: 'L8' },
+  2023: { name: 'Landsat 8 OLI', classifier: 'L8' },
+};
+
+const areaInFlight = {};   // year -> Promise, so a year is only fetched once at a time
+const areaError = {};      // year -> true when the last fetch failed
+
+// Fetch per-class areas for one year from the same live classification as the map.
+async function fetchAreas(year) {
+  if (areasByYear[year]) return areasByYear[year];
+  if (areaInFlight[year]) return areaInFlight[year];   // dedup concurrent requests
+
+  areaInFlight[year] = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/areas/${year}`);
+      if (!res.ok) { areaError[year] = true; return null; }
+      const { areas } = await res.json();
+      areasByYear[year] = areas;
+      areaError[year] = false;
+      return areas;
+    } catch (e) {
+      console.warn(`Areas for ${year} unavailable:`, e.message);
+      areaError[year] = true;
+      return null;
+    } finally {
+      delete areaInFlight[year];
+    }
+  })();
+  return areaInFlight[year];
+}
+
+// Fetch the active year first (it is on screen), then the rest, redrawing as each arrives.
+async function loadAllAreas() {
+  const order = [activeYear, ...DISPLAY_YEARS.filter(y => y !== activeYear)];
+  for (const year of order) {
+    await fetchAreas(year);
+    if (year === activeYear) updateAreaLabels(year);
+    drawAreaChart();
   }
 }
 
-const SENSOR_INFO = {
-  1990: { name: 'Landsat 5 TM',    reliable: false },
-  1995: { name: 'Landsat 5 TM',    reliable: false },
-  2000: { name: 'Landsat 7 ETM+',  reliable: false },
-  2002: { name: 'Landsat 7 ETM+',  reliable: false },
-  2010: { name: 'Landsat 7 ETM+',  reliable: false },
-  2015: { name: 'Landsat 8 OLI',   reliable: true  },
-  2020: { name: 'Landsat 8 OLI',   reliable: true  },
-  2023: { name: 'Landsat 9 OLI-2', reliable: true  },
-};
-
 function updateAreaLabels(year) {
-  if (!tsData) return;
-  const pts = tsData.data.filter(d => d.year === year);
-
   document.querySelectorAll('.area-year-label').forEach(el => {
     el.textContent = `km² in ${year}`;
   });
 
+  const areas  = areasByYear[year];
+  const failed = areaError[year] && !areas;   // fetch finished and failed
+  const placeholder = failed ? 'n/a' : '...';  // failed vs still loading
+
   let totalArea = 0;
-  for (const p of pts) {
-    const meta = CLASS_META[p.class_name];
-    if (!meta) continue;
+  for (const [className, meta] of Object.entries(CLASS_META)) {
     const el = document.getElementById(meta.areaId);
-    if (el) {
-      el.innerHTML = `<strong>${p.area_km2.toFixed(1)}</strong> <span class="area-year-label">km² in ${year}</span>`;
+    if (!el) continue;
+    let cell;
+    if (areas) {
+      const val = areas[className] || 0;
+      totalArea += val;
+      cell = `<strong>${val.toFixed(1)}</strong>`;
+    } else {
+      cell = `<strong>${placeholder}</strong>`;
     }
-    totalArea += p.area_km2;
+    el.innerHTML = `${cell} <span class="area-year-label">km² in ${year}</span>`;
   }
 
-  // Update total area from this year's classifications (not from the transition matrix)
-  if (totalArea > 0) {
-    document.getElementById('stat-total-area').textContent = `${totalArea.toFixed(0)} km²`;
-    document.getElementById('stat-area-label').textContent = `Classified area (${year})`;
-  }
+  // Total row ALWAYS reflects the selected year - never a stale previous value.
+  document.getElementById('stat-area-label').textContent = `Classified area (${year})`;
+  document.getElementById('stat-total-area').textContent =
+    areas ? `${totalArea.toFixed(0)} km²` : placeholder;
 
-  // Update sensor row and show/hide the accuracy note
+  // Update sensor row and the methodology note
   const sensor = SENSOR_INFO[year];
   if (sensor) {
     document.getElementById('stat-sensor').textContent = sensor.name;
     const note = document.getElementById('sensor-note');
-    if (!sensor.reliable) {
-      note.style.display = 'block';
-      note.textContent = `Note: ${year} uses ${sensor.name} imagery. The classifier was trained on Landsat 9 (2023) spectral signatures, so classifications for earlier sensor generations carry higher uncertainty - treat them as indicative rather than precise.`;
-    } else {
-      note.style.display = 'none';
-    }
+    note.style.display = 'block';
+    note.textContent = `All years (2014-2023) are imaged by ${sensor.name} and classified by the same model, trained on CORINE 2018 labels. Because the sensor and the classifier are held constant, differences between years reflect real land cover change rather than a change in method.`;
   }
 }
 
-// ── Transitions (fetched for future use but not displayed directly) ────────────
-async function fetchTransitions() {
-  // Transition data is available at /api/v1/transitions but not shown in the UI
-  // because the 1990 classification has cross-sensor uncertainty that makes the
-  // 58.8% change figure unreliable. Reserved for the notebooks / Sankey diagram.
-}
-
 // ── Area trend chart (SVG) ─────────────────────────────────────────────────────
-function drawAreaChart(ts) {
+function drawAreaChart() {
   const svg = document.getElementById('area-chart');
+
+  // Only plot years whose live areas have loaded so far.
+  const years = DISPLAY_YEARS.filter(y => areasByYear[y]);
+  if (years.length < 2) return;
+
   const W = 380, H = 110;
   const pad = { top: 8, right: 12, bottom: 22, left: 38 };
   const iW = W - pad.left - pad.right;
   const iH = H - pad.top - pad.bottom;
 
-  const classes = Object.keys(CLASS_META).filter(c =>
-    ts.data.some(d => d.class_name === c)
-  );
-  const years = ts.years;
-  const yMin = years[0], yMax = years[years.length - 1];
+  const classes = Object.keys(CLASS_META);
+  const yMin = DISPLAY_YEARS[0];
+  const yMax = DISPLAY_YEARS[DISPLAY_YEARS.length - 1];
 
-  const maxArea = Math.max(...ts.data.map(d => d.area_km2));
+  let maxArea = 0;
+  for (const y of years) {
+    for (const c of classes) maxArea = Math.max(maxArea, areasByYear[y][c] || 0);
+  }
+  if (maxArea <= 0) return;
+
   const xS = yr => pad.left + (yr - yMin) / (yMax - yMin) * iW;
   const yS = a  => pad.top  + iH - (a  / maxArea) * iH;
 
   let html = '';
-
-  // SLC-off shaded region (2002-2010 - post Landsat 7 SLC failure)
-  html += `<rect x="${xS(2002)}" y="${pad.top}" width="${xS(2010) - xS(2002)}" height="${iH}"
-    fill="#ffffff" opacity="0.025" />`;
 
   // Horizontal grid lines
   for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
@@ -823,7 +1002,7 @@ function drawAreaChart(ts) {
       stroke="#2a3350" stroke-width="0.6" />`;
     if (frac > 0) {
       html += `<text x="${pad.left - 5}" y="${y + 3}" fill="#8892a4" font-size="8"
-        text-anchor="end" font-family="Inter, sans-serif">${(a).toFixed(0)}</text>`;
+        text-anchor="end" font-family="Inter, sans-serif">${a.toFixed(0)}</text>`;
     }
   }
 
@@ -832,10 +1011,8 @@ function drawAreaChart(ts) {
     text-anchor="middle" font-family="Inter, sans-serif"
     transform="rotate(-90, 8, ${pad.top + iH / 2})">km²</text>`;
 
-  // X-axis labels (only key years)
-  const labelYears = [1990, 2002, 2010, 2023];
-  for (const yr of labelYears) {
-    if (!years.includes(yr)) continue;
+  // X-axis labels (every display year)
+  for (const yr of DISPLAY_YEARS) {
     const x = xS(yr);
     html += `<text x="${x}" y="${H - 4}" fill="#8892a4" font-size="8"
       text-anchor="middle" font-family="Inter, sans-serif">${yr}</text>`;
@@ -846,21 +1023,18 @@ function drawAreaChart(ts) {
   // Lines per class
   for (const cls of classes) {
     const color = CLASS_META[cls].color;
-    const pts = ts.data
-      .filter(d => d.class_name === cls)
-      .sort((a, b) => a.year - b.year);
+    const pts = years.map(y => ({ year: y, area: areasByYear[y][cls] || 0 }));
     if (pts.length < 2) continue;
 
     const d = pts.map((p, i) =>
-      `${i === 0 ? 'M' : 'L'}${xS(p.year).toFixed(1)},${yS(p.area_km2).toFixed(1)}`
+      `${i === 0 ? 'M' : 'L'}${xS(p.year).toFixed(1)},${yS(p.area).toFixed(1)}`
     ).join(' ');
 
     html += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"
       stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />`;
 
-    // Dots at each data point
     for (const p of pts) {
-      html += `<circle cx="${xS(p.year).toFixed(1)}" cy="${yS(p.area_km2).toFixed(1)}"
+      html += `<circle cx="${xS(p.year).toFixed(1)}" cy="${yS(p.area).toFixed(1)}"
         r="2.5" fill="${color}" opacity="0.9" />`;
     }
   }
@@ -888,8 +1062,9 @@ aboutToggle.addEventListener('click', () => {
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
-  await Promise.all([fetchTimeSeries(), fetchTransitions()]);
-  loadGeeLayer(activeYear);
+  updateAreaLabels(activeYear);   // render sensor note + "..." placeholders immediately
+  loadGeeLayer(activeYear);       // load the active year's map
+  loadAllAreas();                 // fetch every year's areas in the background
 })();
 </script>
 </body>
