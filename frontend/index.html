@@ -673,8 +673,8 @@
       <p>Lanzarote's stark volcanic landscape produces strong spectral contrasts in Landsat imagery - black basalt, golden enarenado farmland, white urban sprawl and blue coastline each sit in a different part of the electromagnetic spectrum. The island is also a UNESCO Biosphere Reserve facing real pressure from three decades of rapid tourism development, making the land cover story genuinely interesting.</p>
     </div>
     <div class="about-block">
-      <h3>What the data shows</h3>
-      <p>Every year from 2014 to 2023 is imaged by the same satellite (Landsat 8) and labelled by the same classifier, trained on CORINE 2018 reference data. Holding the method constant means the differences you see between years reflect <strong style="color:var(--text)">real land cover change</strong>, not an artefact of switching sensors or models. Overall classifier accuracy is 66.7%, with the main uncertainty between Agriculture and Barren pixels on this volcanic terrain - so read the numbers as close estimates rather than exact figures.</p>
+      <h3>How accurate is this?</h3>
+      <p>Overall accuracy is <strong style="color:var(--text)">66.7%</strong> - so roughly <strong style="color:var(--text)">1 in 3 pixels may be mislabelled</strong>, and that error concentrates almost entirely on one pair: Agriculture vs Barren. On Lanzarote, crops are grown <em>under</em> volcanic ash (the enarenado technique), so a farm and bare lava rock reflect nearly identical light - the satellite genuinely struggles to tell them apart. Urban / built-up, by contrast, is spectrally distinct, so <strong style="color:var(--text)">new-development figures are the most trustworthy</strong>. Every year uses the same satellite and the same model, so year-to-year differences are real change, not a change of method - but treat the Agriculture/Barren split as an estimate, not a measurement.</p>
     </div>
   </div>
 </div>
@@ -826,7 +826,9 @@ async function loadChangeMap() {
       setYearButtonsEnabled(true);
       return;
     }
-    const { tile_url, changed_km2, changed_pct } = await res.json();
+    const {
+      tile_url, changed_km2, changed_pct, urban_gain_km2, ag_barren_share,
+    } = await res.json();
     if (geeLayer) { map.removeLayer(geeLayer); geeLayer = null; }
     geeLayer = L.tileLayer(tile_url, { opacity: 0.9, maxZoom: 14 });
     geeLayer.addTo(map);
@@ -834,8 +836,13 @@ async function loadChangeMap() {
     const done = () => { if (!hidden) { hidden = true; hideLoading(); setYearButtonsEnabled(true); } };
     geeLayer.once('load', done);
     setTimeout(done, 12000);
-    compareStat.textContent =
-      `${changed_km2} km² changed class (${changed_pct}% of the island), shown as what it became.`;
+    // Lead with the reliable signal (new urban development); be honest that most
+    // of the total "change" is the uncertain Agriculture/Barren boundary.
+    compareStat.innerHTML =
+      `<strong style="color:var(--text)">~${urban_gain_km2} km² of new urban development</strong> ` +
+      `<span style="color:var(--muted)">(most reliable signal) &nbsp;·&nbsp; ` +
+      `${changed_km2} km² total apparent change (${changed_pct}%), of which ` +
+      `${ag_barren_share}% is the uncertain Agriculture/Barren boundary.</span>`;
   } catch (err) {
     console.warn('Change map fetch failed:', err.message);
     showGeeError();

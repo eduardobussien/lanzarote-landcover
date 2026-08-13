@@ -107,9 +107,16 @@ SENSOR_CONFIG = {
 }
 
 # Half-width (in years) of the window used to build each display year's map.
-# "1990" therefore means a circa-1989-1991 dry-season composite, which avoids
+# "2014" therefore means a circa-2013-2015 dry-season composite, which avoids
 # empty images when a single year has no usable Landsat scenes.
 CLASSIFY_HALF_WINDOW = 1
+
+# Spatial majority-filter radius in pixels (1 -> 3x3 window). After
+# classification, each pixel is replaced by the most common class in its
+# neighbourhood. This erases isolated salt-and-pepper pixels - mostly the
+# Agriculture<->Barren flicker on enarenado terrain - while keeping real
+# contiguous patches, so maps, area counts and change maps show signal not noise.
+MAJORITY_FILTER_RADIUS = 1
 
 # Locks guard only the one-time setup and per-sensor training (cheap graph
 # building + shared-state writes). The blocking GEE network calls run OUTSIDE
@@ -267,10 +274,19 @@ def _classified_image(year: int):
         year - CLASSIFY_HALF_WINDOW,
         year + CLASSIFY_HALF_WINDOW,
     )
-    return (
+    classified = (
         composite.select(FEATURE_BANDS)
         .classify(classifier)
         .rename("classification")
+        .toInt()
+    )
+    # Majority (mode) filter to remove isolated misclassified pixels. Applied
+    # before the land mask, then re-masked so the coastline stays crisp.
+    smoothed = classified.focalMode(
+        radius=MAJORITY_FILTER_RADIUS, kernelType="square", units="pixels"
+    ).rename("classification")
+    return (
+        smoothed
         .updateMask(_land_mask)
         .toInt()
         .clip(_aoi)
@@ -350,8 +366,19 @@ def get_change_map(year_a: int, year_b: int) -> dict:
     change_img = b.updateMask(changed)            # keep only changed pixels, coloured by new class
     url = change_img.getMapId(VIS_PARAMS)["tile_fetcher"].url_format
 
-    # One call for both the changed-pixel count and the total land-pixel count.
-    stats_img = changed.addBands(a.mask().rename("land"))
+    # Break the change into a reliable part and an uncertain part:
+    #   urban_gain = became Urban (class 0) - the most spectrally distinct, so
+    #                the most trustworthy signal (real new development).
+    #   ag_barren  = Agriculture<->Barren flip (classes 3<->4) - the class pair
+    #                that is nearly inseparable on enarenado terrain, so the
+    #                least trustworthy part of any "change".
+    urban_gain = b.eq(0).And(a.neq(0)).rename("urban_gain")
+    ag_barren  = a.eq(3).And(b.eq(4)).Or(a.eq(4).And(b.eq(3))).rename("ag_barren")
+
+    # One call for every count we need.
+    stats_img = changed.addBands([
+        urban_gain, ag_barren, a.mask().rename("land"),
+    ])
     stats = stats_img.reduceRegion(
         reducer   = ee.Reducer.sum(),
         geometry  = _aoi,
@@ -360,12 +387,18 @@ def get_change_map(year_a: int, year_b: int) -> dict:
         maxPixels = int(1e10),
     ).getInfo() or {}
 
-    changed_px = stats.get("changed") or 0
-    land_px    = stats.get("land") or 0
+    changed_px    = stats.get("changed") or 0
+    urban_gain_px = stats.get("urban_gain") or 0
+    ag_barren_px  = stats.get("ag_barren") or 0
+    land_px       = stats.get("land") or 0
+
     result = {
-        "tile_url":    url,
-        "changed_km2": round(changed_px * KM2_PER_PIXEL, 1),
-        "changed_pct": round(changed_px / land_px * 100, 1) if land_px else 0.0,
+        "tile_url":        url,
+        "changed_km2":     round(changed_px * KM2_PER_PIXEL, 1),
+        "changed_pct":     round(changed_px / land_px * 100, 1) if land_px else 0.0,
+        "urban_gain_km2":  round(urban_gain_px * KM2_PER_PIXEL, 1),
+        "ag_barren_km2":   round(ag_barren_px * KM2_PER_PIXEL, 1),
+        "ag_barren_share": round(ag_barren_px / changed_px * 100, 1) if changed_px else 0.0,
     }
     _change_cache[key] = result
     return result
