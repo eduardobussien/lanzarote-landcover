@@ -274,23 +274,27 @@ def _classified_image(year: int):
         year - CLASSIFY_HALF_WINDOW,
         year + CLASSIFY_HALF_WINDOW,
     )
-    classified = (
+    # Raw per-pixel classification, masked to land FIRST so ocean pixels can
+    # never leak into the majority filter's neighbourhood below.
+    raw = (
         composite.select(FEATURE_BANDS)
         .classify(classifier)
         .rename("classification")
         .toInt()
-    )
-    # Majority (mode) filter to remove isolated misclassified pixels. Applied
-    # before the land mask, then re-masked so the coastline stays crisp.
-    smoothed = classified.focalMode(
-        radius=MAJORITY_FILTER_RADIUS, kernelType="square", units="pixels"
-    ).rename("classification")
-    return (
-        smoothed
         .updateMask(_land_mask)
-        .toInt()
-        .clip(_aoi)
     )
+    # Majority (mode) filter removes isolated Agriculture<->Barren flicker, the
+    # dominant noise on enarenado terrain.
+    smoothed = raw.focalMode(
+        radius=MAJORITY_FILTER_RADIUS, kernelType="square", units="pixels",
+    )
+    # But Urban is spectrally distinct and new development shows up as small,
+    # isolated pixels - exactly what the filter would erase. So keep every pixel
+    # the raw classifier called Urban, and only smooth the rest. This means the
+    # urban-growth figure is not deflated by the noise filter.
+    result = smoothed.where(raw.eq(0), 0)
+    # Re-apply the raw valid mask: no ocean bleed, no cloud-gap fill-in.
+    return result.updateMask(raw.mask()).clip(_aoi)
 
 
 def get_tile_url(year: int) -> str:
@@ -375,10 +379,12 @@ def get_change_map(year_a: int, year_b: int) -> dict:
     urban_gain = b.eq(0).And(a.neq(0)).rename("urban_gain")
     ag_barren  = a.eq(3).And(b.eq(4)).Or(a.eq(4).And(b.eq(3))).rename("ag_barren")
 
-    # One call for every count we need.
-    stats_img = changed.addBands([
-        urban_gain, ag_barren, a.mask().rename("land"),
-    ])
+    # Denominator = pixels with valid data in BOTH years (the only pixels that
+    # can be compared). Using the same population for every numerator keeps the
+    # percentages internally consistent regardless of cloud gaps in either year.
+    valid_both = a.mask().And(b.mask()).rename("valid")
+
+    stats_img = changed.addBands([urban_gain, ag_barren, valid_both])
     stats = stats_img.reduceRegion(
         reducer   = ee.Reducer.sum(),
         geometry  = _aoi,
@@ -390,14 +396,13 @@ def get_change_map(year_a: int, year_b: int) -> dict:
     changed_px    = stats.get("changed") or 0
     urban_gain_px = stats.get("urban_gain") or 0
     ag_barren_px  = stats.get("ag_barren") or 0
-    land_px       = stats.get("land") or 0
+    valid_px      = stats.get("valid") or 0
 
     result = {
         "tile_url":        url,
         "changed_km2":     round(changed_px * KM2_PER_PIXEL, 1),
-        "changed_pct":     round(changed_px / land_px * 100, 1) if land_px else 0.0,
+        "changed_pct":     round(changed_px / valid_px * 100, 1) if valid_px else 0.0,
         "urban_gain_km2":  round(urban_gain_px * KM2_PER_PIXEL, 1),
-        "ag_barren_km2":   round(ag_barren_px * KM2_PER_PIXEL, 1),
         "ag_barren_share": round(ag_barren_px / changed_px * 100, 1) if changed_px else 0.0,
     }
     _change_cache[key] = result
