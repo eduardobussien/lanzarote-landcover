@@ -12,7 +12,9 @@ PROJECT_METADATA = {
     "bbox":        {"west": -13.92, "south": 28.80, "east": -13.30, "north": 29.30},
     "years":       [1990, 1995, 2000, 2002, 2010, 2015, 2020, 2023],
     "classes":     ["Urban/Built-up", "Water/Wetland", "Agriculture", "Barren/Volcanic"],
-    "classifier":  {"name": "Random Forest", "n_trees": 200, "oa": 0.667, "kappa": 0.52},
+    # Held-out accuracy of the served (filtered) map vs CORINE 2018 -
+    # reproduce with scripts/evaluate_accuracy.py.
+    "classifier":  {"name": "Random Forest", "n_trees": 200, "oa": 0.689, "kappa": 0.548},
     "imagery":     "Landsat Collection 2 Level-2 Surface Reflectance (USGS/NASA)",
     "labels":      "CORINE Land Cover 2018 (Copernicus/EEA)",
 }

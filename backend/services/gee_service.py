@@ -283,15 +283,16 @@ def _classified_image(year: int):
         .toInt()
         .updateMask(_land_mask)
     )
-    # Majority (mode) filter removes isolated Agriculture<->Barren flicker, the
-    # dominant noise on enarenado terrain.
+    # Majority (mode) filter removes isolated salt-and-pepper pixels. Measured on
+    # held-out points it raises accuracy from 67.7% to 68.9%
+    # (scripts/evaluate_accuracy.py).
     smoothed = raw.focalMode(
         radius=MAJORITY_FILTER_RADIUS, kernelType="square", units="pixels",
     )
-    # But Urban is spectrally distinct and new development shows up as small,
-    # isolated pixels - exactly what the filter would erase. So keep every pixel
-    # the raw classifier called Urban, and only smooth the rest. This means the
-    # urban-growth figure is not deflated by the noise filter.
+    # New development often shows up as small, isolated Urban pixels - exactly
+    # what the filter would erase - so keep every pixel the raw classifier called
+    # Urban and only smooth the rest. Measured trade-off: this also keeps some
+    # false Urban speckle (Urban precision 0.73 raw -> 0.69 filtered).
     result = smoothed.where(raw.eq(0), 0)
     # Re-apply the raw valid mask: no ocean bleed, no cloud-gap fill-in.
     return result.updateMask(raw.mask()).clip(_aoi)
@@ -370,13 +371,18 @@ def get_change_map(year_a: int, year_b: int) -> dict:
     change_img = b.updateMask(changed)            # keep only changed pixels, coloured by new class
     url = change_img.getMapId(VIS_PARAMS)["tile_fetcher"].url_format
 
-    # Break the change into a reliable part and an uncertain part:
-    #   urban_gain = became Urban (class 0) - the most spectrally distinct, so
-    #                the most trustworthy signal (real new development).
-    #   ag_barren  = Agriculture<->Barren flip (classes 3<->4) - the class pair
-    #                that is nearly inseparable on enarenado terrain, so the
-    #                least trustworthy part of any "change".
+    # Break the change down:
+    #   urban_gain = became Urban (class 0) between the two years.
+    #   urban_loss = stopped being Urban. Real demolition is rare on Lanzarote,
+    #                so most of this is classifier noise flickering pixels in and
+    #                out of Urban - and the same noise inflates urban_gain.
+    #                Reporting only the gain overstates development; the NET
+    #                (gain - loss) cancels the flicker and is the honest figure.
+    #   ag_barren  = Agriculture<->Barren flip (classes 3<->4) - one of the
+    #                model's main confusions on enarenado terrain, reported so
+    #                users can see how much of the "change" is that switching.
     urban_gain = b.eq(0).And(a.neq(0)).rename("urban_gain")
+    urban_loss = a.eq(0).And(b.neq(0)).rename("urban_loss")
     ag_barren  = a.eq(3).And(b.eq(4)).Or(a.eq(4).And(b.eq(3))).rename("ag_barren")
 
     # Denominator = pixels with valid data in BOTH years (the only pixels that
@@ -384,7 +390,7 @@ def get_change_map(year_a: int, year_b: int) -> dict:
     # percentages internally consistent regardless of cloud gaps in either year.
     valid_both = a.mask().And(b.mask()).rename("valid")
 
-    stats_img = changed.addBands([urban_gain, ag_barren, valid_both])
+    stats_img = changed.addBands([urban_gain, urban_loss, ag_barren, valid_both])
     stats = stats_img.reduceRegion(
         reducer   = ee.Reducer.sum(),
         geometry  = _aoi,
@@ -395,6 +401,7 @@ def get_change_map(year_a: int, year_b: int) -> dict:
 
     changed_px    = stats.get("changed") or 0
     urban_gain_px = stats.get("urban_gain") or 0
+    urban_loss_px = stats.get("urban_loss") or 0
     ag_barren_px  = stats.get("ag_barren") or 0
     valid_px      = stats.get("valid") or 0
 
@@ -403,6 +410,8 @@ def get_change_map(year_a: int, year_b: int) -> dict:
         "changed_km2":     round(changed_px * KM2_PER_PIXEL, 1),
         "changed_pct":     round(changed_px / valid_px * 100, 1) if valid_px else 0.0,
         "urban_gain_km2":  round(urban_gain_px * KM2_PER_PIXEL, 1),
+        "urban_loss_km2":  round(urban_loss_px * KM2_PER_PIXEL, 1),
+        "urban_net_km2":   round((urban_gain_px - urban_loss_px) * KM2_PER_PIXEL, 1),
         "ag_barren_share": round(ag_barren_px / changed_px * 100, 1) if changed_px else 0.0,
     }
     _change_cache[key] = result

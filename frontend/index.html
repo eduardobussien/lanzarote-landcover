@@ -632,7 +632,7 @@
       </div>
       <div class="stat-row">
         <span class="stat-label">Classifier accuracy</span>
-        <span class="stat-value">66.7% OA / Kappa 0.52 (2023)</span>
+        <span class="stat-value">68.9% / Kappa 0.55 (held-out test)</span>
       </div>
       <div class="stat-row">
         <span class="stat-label">Imagery source</span>
@@ -674,7 +674,7 @@
     </div>
     <div class="about-block">
       <h3>How accurate is this?</h3>
-      <p>Overall accuracy is <strong style="color:var(--text)">66.7%</strong> - so roughly <strong style="color:var(--text)">1 in 3 pixels may be mislabelled</strong>, and that error concentrates almost entirely on one pair: Agriculture vs Barren. On Lanzarote, crops are grown <em>under</em> volcanic ash (the enarenado technique), so a farm and bare lava rock reflect nearly identical light - the satellite genuinely struggles to tell them apart. Urban / built-up, by contrast, is spectrally distinct, so <strong style="color:var(--text)">new-development figures are the most trustworthy</strong>. Every year uses the same satellite and the same model, so year-to-year differences are real change, not a change of method - but treat the Agriculture/Barren split as an estimate, not a measurement.</p>
+      <p>Tested on 715 points the model never trained on, the map agrees with the reference data (CORINE 2018) <strong style="color:var(--text)">68.9%</strong> of the time - so roughly <strong style="color:var(--text)">1 in 3 pixels may be mislabelled</strong>. The errors are spread across Urban, Agriculture and Barren, each right about 65-71% of the time: bare lava, <em>enarenado</em> farmland (crops grown under volcanic ash) and built-up land all reflect similar light at 30 m, so the model mixes them up in every direction. Some of that disagreement is the reference map itself, which is drawn in blocks of 25 hectares or more. Every year uses the same satellite and the same model, so errors that repeat each year largely cancel when comparing years - but read every figure here as an <strong style="color:var(--text)">estimate, not a measurement</strong>.</p>
     </div>
   </div>
 </div>
@@ -827,7 +827,8 @@ async function loadChangeMap() {
       return;
     }
     const {
-      tile_url, changed_km2, changed_pct, urban_gain_km2, ag_barren_share,
+      tile_url, changed_km2, changed_pct, ag_barren_share,
+      urban_gain_km2, urban_loss_km2, urban_net_km2,
     } = await res.json();
     if (geeLayer) { map.removeLayer(geeLayer); geeLayer = null; }
     geeLayer = L.tileLayer(tile_url, { opacity: 0.9, maxZoom: 14 });
@@ -836,13 +837,17 @@ async function loadChangeMap() {
     const done = () => { if (!hidden) { hidden = true; hideLoading(); setYearButtonsEnabled(true); } };
     geeLayer.once('load', done);
     setTimeout(done, 12000);
-    // Lead with the reliable signal (new urban development); be honest that most
-    // of the total "change" is the uncertain Agriculture/Barren boundary.
+    // Lead with NET urban change. Pixels flickering in and out of Urban inflate
+    // both the gain and the loss, so the gain alone overstates development; the
+    // net cancels that flicker. Then be honest that most of the total "change"
+    // is the uncertain Agriculture/Barren boundary.
+    const netSign = urban_net_km2 >= 0 ? '+' : '';
     compareStat.innerHTML =
-      `<strong style="color:var(--text)">~${urban_gain_km2} km² of new urban development</strong> ` +
-      `<span style="color:var(--muted)">(most reliable signal) &nbsp;·&nbsp; ` +
-      `${changed_km2} km² total apparent change (${changed_pct}%), of which ` +
-      `${ag_barren_share}% is the uncertain Agriculture/Barren boundary.</span>`;
+      `<strong style="color:var(--text)">Urban ${netSign}${urban_net_km2} km² net</strong> ` +
+      `<span style="color:var(--muted)">(${urban_gain_km2} gained, ${urban_loss_km2} lost - ` +
+      `pixels flickering in and out of Urban inflate both, so the net is the more meaningful figure) ` +
+      `&nbsp;·&nbsp; ${changed_km2} km² total apparent change (${changed_pct}%), ` +
+      `${ag_barren_share}% of it pixels switching between Agriculture and Barren.</span>`;
   } catch (err) {
     console.warn('Change map fetch failed:', err.message);
     showGeeError();
